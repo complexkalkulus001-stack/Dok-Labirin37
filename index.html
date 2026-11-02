@@ -78,13 +78,22 @@
           return;
         }
 
-        if (data.action === 'navigate' && data.path) {
+        if (data.action === 'navigate' && data.path != null) {
           if (data.path === '/' || data.path === '') {
+            // Hapus hash tanpa trigger scroll
             history.pushState('', document.title, window.location.pathname + window.location.search);
           } else {
             window.location.hash = data.path;
           }
-          loadApp();
+          // Paksa reload iframe meskipun hash tidak berubah
+          // (kasus: dari /#/video kembali ke /, hash hilang tapi iframe tetap video)
+          setTimeout(function() {
+            var current = appFrame.src;
+            appFrame.src = 'about:blank';
+            setTimeout(function() {
+              loadApp();
+            }, 50);
+          }, 10);
           return;
         }
 
