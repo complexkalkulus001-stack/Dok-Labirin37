@@ -63,25 +63,27 @@
         var data = event.data;
         if (!data || typeof data !== 'object') return;
 
-        // Buka tab kosong (mis. untuk popup Google Form)
         if (data.action === 'openBlank') {
           window.open('', '_blank');
           return;
         }
 
-        // Buka URL download
         if (data.action === 'openDownload' && data.url) {
           window.open(data.url, '_blank');
           return;
         }
 
-        // Buka URL eksternal dengan noopener/noreferrer (lebih aman)
         if (data.action === 'openUrl' && data.url) {
           window.open(data.url, '_blank', 'noopener,noreferrer');
           return;
         }
 
-        // Fullscreen request dari iframe
+        // Navigasi internal: ganti URL parent (mis. /video -> /)
+        if (data.action === 'navigate' && data.path) {
+          window.location.href = data.path;
+          return;
+        }
+
         if (data.action === 'requestFullscreen') {
           var el = document.documentElement;
           var fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
@@ -94,26 +96,36 @@
     });
 
     // =============================================
-    // LOGIKA LOAD APLIKASI
+    // LOGIKA LOAD APLIKASI (routing /video & /dokumen)
     // =============================================
     function loadApp() {
       var targetUrl = APP_URL;
-      var formId = '';
-
-      // 1. Cek apakah ada path (contoh: form37.pages.dev/ID_FORM)
       var path = window.location.pathname;
-      if (path && path.length > 1 && path !== '/') {
-        formId = path.substring(1);
-      }
-
-      // 2. Cek apakah ada query ?id= (fallback)
       var params = new URLSearchParams(window.location.search);
-      if (!formId && params.get('id')) {
-        formId = params.get('id');
-      }
 
-      if (formId) {
-        // Jika ada ID Form, paksa masuk ke halaman responden
+      // Normalisasi path: hapus slash awal/akhir
+      var cleanPath = path ? path.replace(/^\/+|\/+$/g, '') : '';
+      var firstSegment = cleanPath ? cleanPath.split('/')[0].toLowerCase() : '';
+
+      if (firstSegment === 'video' || firstSegment === 'dokumen') {
+        // Deep link ke halaman Video atau Dokumen
+        targetUrl += "?page=" + firstSegment;
+        params.forEach(function(value, key) {
+          if (key !== 'page') {
+            targetUrl += "&" + key + "=" + encodeURIComponent(value);
+          }
+        });
+      } else if (firstSegment) {
+        // Path lain = anggap sebagai formId (fitur lama)
+        targetUrl += "?page=respond&id=" + firstSegment;
+        params.forEach(function(value, key) {
+          if (key !== 'id' && key !== 'page') {
+            targetUrl += "&" + key + "=" + encodeURIComponent(value);
+          }
+        });
+      } else if (params.get('id')) {
+        // Fallback ?id=
+        var formId = params.get('id');
         targetUrl += "?page=respond&id=" + formId;
         params.forEach(function(value, key) {
           if (key !== 'id' && key !== 'page') {
@@ -121,7 +133,7 @@
           }
         });
       } else {
-        // Jika tidak ada ID, buka halaman utama
+        // Tidak ada path → home
         targetUrl += "?page=home";
       }
 
