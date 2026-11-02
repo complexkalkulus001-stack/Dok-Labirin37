@@ -78,9 +78,16 @@
           return;
         }
 
-        // Navigasi internal: ganti URL parent (mis. /video -> /)
+        // Navigasi internal: ganti hash parent (mis. /#/ -> root)
         if (data.action === 'navigate' && data.path) {
-          window.location.href = data.path;
+          if (data.path === '/' || data.path === '') {
+            // Bersihkan hash, kembali ke root
+            history.pushState('', document.title, window.location.pathname + window.location.search);
+          } else {
+            window.location.hash = data.path;
+          }
+          // Trigger loadApp() secara manual karena hashchange tidak selalu fire
+          loadApp();
           return;
         }
 
@@ -96,16 +103,18 @@
     });
 
     // =============================================
-    // LOGIKA LOAD APLIKASI (routing /video & /dokumen)
+    // LOGIKA LOAD APLIKASI (HASH ROUTING)
     // =============================================
     function loadApp() {
       var targetUrl = APP_URL;
-      var path = window.location.pathname;
+      var hash = window.location.hash.substring(1); // hapus tanda #
       var params = new URLSearchParams(window.location.search);
 
-      // Normalisasi path: hapus slash awal/akhir
-      var cleanPath = path ? path.replace(/^\/+|\/+$/g, '') : '';
-      var firstSegment = cleanPath ? cleanPath.split('/')[0].toLowerCase() : '';
+      // Normalisasi: #/video -> video, #video -> video
+      var cleanHash = hash ? hash.replace(/^\/+/, '').toLowerCase() : '';
+
+      // Ambil segment pertama (mis. "video" dari "video/abc")
+      var firstSegment = cleanHash ? cleanHash.split('/')[0] : '';
 
       if (firstSegment === 'video' || firstSegment === 'dokumen') {
         // Deep link ke halaman Video atau Dokumen
@@ -133,7 +142,7 @@
           }
         });
       } else {
-        // Tidak ada path → home
+        // Tidak ada hash → home
         targetUrl += "?page=home";
       }
 
@@ -141,6 +150,7 @@
     }
 
     window.addEventListener('DOMContentLoaded', loadApp);
+    window.addEventListener('hashchange', loadApp);
   </script>
 </body>
 </html>
